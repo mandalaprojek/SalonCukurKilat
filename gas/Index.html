@@ -478,27 +478,58 @@ _SalonCukurKilat — Studio & Home Service_`;
     // =========================================================================
     // 4. KOMPONEN UTAMA APLIKASI SALONCUKURKILAT
     // =========================================================================
-    function App() {
-      const [isLoggedIn, setIsLoggedIn] = useState(false);
-      const [currentRole, setCurrentRole] = useState('customer'); // 'customer' | 'barber' | 'admin'
-      const [selectedBarberId, setSelectedBarberId] = useState('BRB-01');
-      const [activeCustomerId, setActiveCustomerId] = useState('CUST-001');
-      const [activeTab, setActiveTab] = useState('home'); // 'home' | 'booking' | 'member' | 'manage'
-      const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+    function loadSavedState(key, fallback) {
+      try {
+        const raw = localStorage.getItem('sck_v2_' + key);
+        return raw !== null ? JSON.parse(raw) : fallback;
+      } catch (e) {
+        return fallback;
+      }
+    }
 
-      // Status Sinkronisasi Google Sheets (via google.script.run)
+    function saveState(key, value) {
+      try {
+        localStorage.setItem('sck_v2_' + key, JSON.stringify(value));
+      } catch (e) {}
+    }
+
+    function App() {
+      const [isLoggedIn, setIsLoggedIn] = useState(() => loadSavedState('isLoggedIn', false));
+      const [currentRole, setCurrentRole] = useState(() => loadSavedState('currentRole', 'customer')); // 'customer' | 'barber' | 'admin'
+      const [selectedBarberId, setSelectedBarberId] = useState(() => loadSavedState('selectedBarberId', 'BRB-01'));
+      const [activeCustomerId, setActiveCustomerId] = useState(() => loadSavedState('activeCustomerId', 'CUST-001'));
+      const [activeTab, setActiveTab] = useState(() => loadSavedState('activeTab', 'home')); // 'home' | 'booking' | 'member' | 'manage'
+      const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+      const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+
+      // Status Sinkronisasi Google Sheets (via google.script.run / fetch)
       const [gasSyncStatus, setGasSyncStatus] = useState('local'); // 'local' | 'syncing' | 'connected' | 'error'
 
-      // State Data Aplikasi
+      // State Data Aplikasi (dengan penyimpanan lokal otomatis)
       const [services] = useState(INITIAL_SERVICES);
-      const [barbers, setBarbers] = useState(INITIAL_BARBERS);
-      const [customers, setCustomers] = useState(INITIAL_CUSTOMERS);
-      const [bookings, setBookings] = useState(INITIAL_BOOKINGS);
-      const [riwayatPotong, setRiwayatPotong] = useState(INITIAL_RIWAYAT_POTONG);
-      const [pembayaran, setPembayaran] = useState(INITIAL_PEMBAYARAN);
-      const [stok, setStok] = useState(INITIAL_STOK);
-      const [pendaftaran, setPendaftaran] = useState(INITIAL_PENDAFTARAN);
-      const [loyaltySettings, setLoyaltySettings] = useState(INITIAL_LOYALTY_SETTINGS);
+      const [barbers, setBarbers] = useState(() => loadSavedState('barbers', INITIAL_BARBERS));
+      const [customers, setCustomers] = useState(() => loadSavedState('customers', INITIAL_CUSTOMERS));
+      const [bookings, setBookings] = useState(() => loadSavedState('bookings', INITIAL_BOOKINGS));
+      const [riwayatPotong, setRiwayatPotong] = useState(() => loadSavedState('riwayatPotong', INITIAL_RIWAYAT_POTONG));
+      const [pembayaran, setPembayaran] = useState(() => loadSavedState('pembayaran', INITIAL_PEMBAYARAN));
+      const [stok, setStok] = useState(() => loadSavedState('stok', INITIAL_STOK));
+      const [pendaftaran, setPendaftaran] = useState(() => loadSavedState('pendaftaran', INITIAL_PENDAFTARAN));
+      const [loyaltySettings, setLoyaltySettings] = useState(() => loadSavedState('loyaltySettings', INITIAL_LOYALTY_SETTINGS));
+
+      // Simpan sesi login & data ke localStorage secara otomatis
+      useEffect(() => { saveState('isLoggedIn', isLoggedIn); }, [isLoggedIn]);
+      useEffect(() => { saveState('currentRole', currentRole); }, [currentRole]);
+      useEffect(() => { saveState('selectedBarberId', selectedBarberId); }, [selectedBarberId]);
+      useEffect(() => { saveState('activeCustomerId', activeCustomerId); }, [activeCustomerId]);
+      useEffect(() => { saveState('activeTab', activeTab); }, [activeTab]);
+      useEffect(() => { saveState('barbers', barbers); }, [barbers]);
+      useEffect(() => { saveState('customers', customers); }, [customers]);
+      useEffect(() => { saveState('bookings', bookings); }, [bookings]);
+      useEffect(() => { saveState('riwayatPotong', riwayatPotong); }, [riwayatPotong]);
+      useEffect(() => { saveState('pembayaran', pembayaran); }, [pembayaran]);
+      useEffect(() => { saveState('stok', stok); }, [stok]);
+      useEffect(() => { saveState('pendaftaran', pendaftaran); }, [pendaftaran]);
+      useEffect(() => { saveState('loyaltySettings', loyaltySettings); }, [loyaltySettings]);
 
       // Preselected Booking State
       const [preselectedServiceId, setPreselectedServiceId] = useState('srv-1');
@@ -506,6 +537,7 @@ _SalonCukurKilat — Studio & Home Service_`;
 
       const GAS_WEB_APP_URL =
         'https://script.google.com/macros/s/AKfycbwRaYx4eaGcI_4e4pDj_lYxQQJmwTNL82ia7xyrq-xxfDTnnqe_dLWNBr6aY7WI5-DXRg/exec';
+      const PUBLIC_APP_URL = 'https://mandalaprojek.github.io/SalonCukurKilat/';
 
       const applyRemoteData = useCallback((res) => {
         if (res && typeof res === 'object') {
@@ -691,55 +723,68 @@ _SalonCukurKilat — Studio & Home Service_`;
       // =======================================================================
       if (!isLoggedIn) {
         return (
-          <LoginScreen
-            customers={customers}
-            barbers={barbers}
-            onLoginCustomer={(nama, wa, custId) => {
-              if (custId) {
-                setActiveCustomerId(custId);
-              } else {
-                const existing = customers.find((c) => c.noWa === wa.trim());
-                if (existing) {
-                  setActiveCustomerId(existing.id);
+          <>
+            <LoginScreen
+              customers={customers}
+              barbers={barbers}
+              onOpenQrModal={() => setIsQrModalOpen(true)}
+              onLoginCustomer={(nama, wa, custId) => {
+                if (custId) {
+                  setActiveCustomerId(custId);
                 } else {
-                  const newId = `CUST-00${customers.length + 1}`;
-                  setCustomers((prev) => [
-                    ...prev,
-                    {
-                      id: newId,
-                      nama: nama.trim() || 'Pelanggan Baru',
-                      noWa: wa.trim(),
-                      alamat: '',
-                      totalKunjungan: 0,
-                      statusMember: 'Aktif',
-                      riwayatBintang5Konsisten: true,
-                      poinTerkumpul: 0,
-                    },
-                  ]);
-                  setActiveCustomerId(newId);
+                  const existing = customers.find((c) => c.noWa === wa.trim());
+                  if (existing) {
+                    setActiveCustomerId(existing.id);
+                  } else {
+                    const newId = `CUST-00${customers.length + 1}`;
+                    setCustomers((prev) => [
+                      ...prev,
+                      {
+                        id: newId,
+                        nama: nama.trim() || 'Pelanggan Baru',
+                        noWa: wa.trim(),
+                        alamat: '',
+                        totalKunjungan: 0,
+                        statusMember: 'Aktif',
+                        riwayatBintang5Konsisten: true,
+                        poinTerkumpul: 0,
+                      },
+                    ]);
+                    setActiveCustomerId(newId);
+                  }
                 }
-              }
-              setCurrentRole('customer');
-              setActiveTab('home');
-              setIsLoggedIn(true);
-            }}
-            onLoginBarber={(barberId) => {
-              setSelectedBarberId(barberId);
-              setCurrentRole('barber');
-              setActiveTab('manage');
-              setIsLoggedIn(true);
-            }}
-            onLoginAdmin={() => {
-              setCurrentRole('admin');
-              setActiveTab('manage');
-              setIsLoggedIn(true);
-            }}
-            onOpenCareer={() => {
-              setCurrentRole('customer');
-              setActiveTab('manage');
-              setIsLoggedIn(true);
-            }}
-          />
+                setCurrentRole('customer');
+                setActiveTab('home');
+                setIsLoggedIn(true);
+              }}
+              onLoginBarber={(barberId) => {
+                setSelectedBarberId(barberId);
+                setCurrentRole('barber');
+                setActiveTab('manage');
+                setIsLoggedIn(true);
+              }}
+              onLoginAdmin={() => {
+                setCurrentRole('admin');
+                setActiveTab('manage');
+                setIsLoggedIn(true);
+              }}
+              onOpenCareer={() => {
+                setCurrentRole('customer');
+                setActiveTab('manage');
+                setIsLoggedIn(true);
+              }}
+            />
+            {isQrModalOpen && (
+              <QrCashierModal
+                appUrl={PUBLIC_APP_URL}
+                onClose={() => setIsQrModalOpen(false)}
+                onOpenPwaGuide={() => {
+                  setIsQrModalOpen(false);
+                  window.dispatchEvent(new CustomEvent('open-pwa-sheet'));
+                }}
+              />
+            )}
+          </>
         );
       }
 
@@ -751,8 +796,8 @@ _SalonCukurKilat — Studio & Home Service_`;
         <div className="min-h-screen bg-[#041a18] text-slate-100 flex justify-center">
           <div className="w-full max-w-md min-h-screen bg-[#062320] border-x border-white/10 flex flex-col relative shadow-2xl">
             {/* TOP HEADER */}
-            <header className="sticky top-0 z-40 w-full bg-[#062320]/95 backdrop-blur-md border-b border-white/10 px-4 h-14 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
+            <header className="sticky top-0 z-40 w-full bg-[#062320]/95 backdrop-blur-md border-b border-white/10 px-4 h-14 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-[#0b322c] border border-[#e5a93c]/30 flex items-center justify-center text-[#e5a93c]">
                   <ScissorsSvg className="w-4 h-4" />
                 </div>
@@ -761,22 +806,44 @@ _SalonCukurKilat — Studio & Home Service_`;
                 </span>
               </div>
 
-              <div className="flex items-center gap-2">
-                {gasSyncStatus === 'connected' && (
-                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-                    ● Sheets Aktif
-                  </span>
-                )}
-                {gasSyncStatus === 'syncing' && (
-                  <span className="text-[10px] font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-full">
-                    ↻ Sync...
-                  </span>
-                )}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={loadFromGoogleSheets}
+                  title="Ketuk untuk sinkronisasi ulang dengan Google Sheets"
+                  className="active:scale-95 transition-transform"
+                >
+                  {gasSyncStatus === 'connected' && (
+                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                      ● Sheets Aktif
+                    </span>
+                  )}
+                  {gasSyncStatus === 'syncing' && (
+                    <span className="text-[10px] font-bold text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                      ↻ Sync...
+                    </span>
+                  )}
+                  {(gasSyncStatus === 'local' || gasSyncStatus === 'error') && (
+                    <span className="text-[10px] font-bold text-slate-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">
+                      ↻ Sync Sheets
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsQrModalOpen(true)}
+                  title="Tampilkan QR Code Meja Kasir"
+                  className="px-2 py-1.5 rounded-lg border border-white/15 bg-[#0b322c] text-[#e5a93c] text-xs font-bold active:scale-95"
+                >
+                  📱 QR
+                </button>
+
                 <button
                   onClick={() => setIsRoleModalOpen(true)}
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#e5a93c]/30 bg-[#e5a93c]/10 text-[#e5a93c] text-xs font-semibold active:scale-95"
                 >
-                  <span className="truncate max-w-[100px]">
+                  <span className="truncate max-w-[85px]">
                     {currentRole === 'admin'
                       ? 'Admin (Owner)'
                       : currentRole === 'barber'
@@ -983,7 +1050,7 @@ _SalonCukurKilat — Studio & Home Service_`;
                   <div className="flex items-center justify-between pb-2 border-b border-white/10">
                     <div>
                       <h3 className="font-bold text-base text-white">Ganti Peran / Akun</h3>
-                      <p className="text-xs text-slate-400">Uji coba cepat RBAC atau keluar</p>
+                      <p className="text-xs text-slate-400">Sesi tersimpan otomatis di perangkat ini</p>
                     </div>
                     <button
                       onClick={() => setIsRoleModalOpen(false)}
@@ -1052,7 +1119,30 @@ _SalonCukurKilat — Studio & Home Service_`;
                     </div>
                   </button>
 
-                  <div className="grid grid-cols-2 gap-2 pt-2">
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsRoleModalOpen(false);
+                        setIsQrModalOpen(true);
+                      }}
+                      className="py-2.5 px-2 rounded-xl bg-[#e5a93c]/15 border border-[#e5a93c]/35 text-[#e5a93c] text-[11px] font-bold"
+                    >
+                      📱 QR Meja Kasir
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsRoleModalOpen(false);
+                        window.dispatchEvent(new CustomEvent('open-pwa-sheet'));
+                      }}
+                      className="py-2.5 px-2 rounded-xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 text-[11px] font-bold"
+                    >
+                      📲 Pasang App (1 MB)
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-1">
                     <button
                       onClick={() => {
                         setIsRoleModalOpen(false);
@@ -1072,6 +1162,109 @@ _SalonCukurKilat — Studio & Home Service_`;
                 </div>
               </div>
             )}
+
+            {/* QR CODE MEJA KASIR MODAL */}
+            {isQrModalOpen && (
+              <QrCashierModal
+                appUrl={PUBLIC_APP_URL}
+                onClose={() => setIsQrModalOpen(false)}
+                onOpenPwaGuide={() => {
+                  setIsQrModalOpen(false);
+                  window.dispatchEvent(new CustomEvent('open-pwa-sheet'));
+                }}
+              />
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // =========================================================================
+    // 4A. KOMPONEN MODAL QR CODE MEJA KASIR & SHARE LINK APLIKASI
+    // =========================================================================
+    function QrCashierModal({ appUrl, onClose, onOpenPwaGuide }) {
+      const [copied, setCopied] = useState(false);
+      const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&margin=12&color=062320&bgcolor=e5a93c&data=${encodeURIComponent(
+        appUrl
+      )}`;
+
+      const handleCopy = () => {
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(appUrl);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }
+      };
+
+      const waShareUrl = `https://wa.me/?text=${encodeURIComponent(
+        `💈 *Booking Cukur & Kartu Member Digital SalonCukurKilat*\n\nTanpa antre! Booking jadwal cukur Studio / Home Service & klaim stempel gratis 1x potong di sini:\n👉 ${appUrl}`
+      )}`;
+
+      return (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm p-0 sm:p-4">
+          <div className="w-full max-w-md bg-[#0b322c] border-t sm:border border-[#e5a93c]/40 rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl text-slate-100 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-[#e5a93c]">
+                  SNIP & SHAVE · QR MEJA KASIR
+                </div>
+                <h3 className="font-extrabold text-base text-white">Scan untuk Booking & Pasang App</h3>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-2.5 py-1 rounded-lg bg-white/10 text-xs text-slate-300"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-[#062320] border border-[#e5a93c]/30 rounded-2xl p-4 flex flex-col items-center text-center space-y-3">
+              <div className="p-2.5 rounded-2xl bg-[#e5a93c] shadow-lg">
+                <img
+                  src={qrImageUrl}
+                  alt="QR Code SalonCukurKilat"
+                  className="w-44 h-44 rounded-xl object-contain"
+                />
+              </div>
+              <div>
+                <div className="text-xs font-extrabold text-white">
+                  Salon<span className="text-[#e5a93c]">CukurKilat</span> Official Web App
+                </div>
+                <div className="text-[11px] text-slate-400 mt-0.5">
+                  Arahkan kamera HP pelanggan ke QR ini untuk langsung membuka aplikasi & pasang PWA (1 MB).
+                </div>
+              </div>
+              <div className="w-full bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-[11px] font-mono text-[#e5a93c] truncate">
+                {appUrl}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="py-2.5 px-3 rounded-xl bg-[#e5a93c] text-[#062320] font-extrabold text-xs shadow active:scale-95 transition-all"
+              >
+                {copied ? '✓ Link Tersalin!' : '📋 Salin Link App'}
+              </button>
+              <a
+                href={waShareUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="py-2.5 px-3 rounded-xl bg-emerald-600 text-white font-bold text-xs text-center shadow active:scale-95 transition-all"
+              >
+                📲 Bagikan ke WA
+              </a>
+            </div>
+
+            <button
+              type="button"
+              onClick={onOpenPwaGuide}
+              className="w-full py-2.5 rounded-xl bg-white/10 border border-white/15 text-slate-200 text-xs font-semibold"
+            >
+              📲 Lihat Cara Pasang ke Layar Utama HP (1 MB)
+            </button>
           </div>
         </div>
       );
@@ -1117,16 +1310,23 @@ _SalonCukurKilat — Studio & Home Service_`;
           setIsSheetOpen(false);
         };
 
+        const handleOpenSheetEvent = () => {
+          setIsDismissed(false);
+          setIsSheetOpen(true);
+        };
+
         window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
         window.addEventListener('appinstalled', handleAppInstalled);
+        window.addEventListener('open-pwa-sheet', handleOpenSheetEvent);
 
         return () => {
           window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
           window.removeEventListener('appinstalled', handleAppInstalled);
+          window.removeEventListener('open-pwa-sheet', handleOpenSheetEvent);
         };
       }, []);
 
-      if (isInstalled || isDismissed) return null;
+      const showFloatingPill = !isInstalled && !isDismissed;
 
       const handlePillClick = async () => {
         if (deferredPrompt) {
@@ -1155,53 +1355,57 @@ _SalonCukurKilat — Studio & Home Service_`;
         }, 900);
       };
 
+      if (!showFloatingPill && !isSheetOpen) return null;
+
       return (
         <>
           {/* FLOATING BOTTOM PILL / ACTION BAR (Area Jempol Mobile) */}
-          <div
-            className={`fixed left-0 right-0 z-30 pointer-events-none flex justify-center px-3 transition-all duration-300 ${
-              hasBottomNav ? 'bottom-[72px]' : 'bottom-4'
-            }`}
-          >
-            <div className="w-full max-w-md flex items-center justify-between gap-2 pl-3.5 pr-2 py-2 rounded-full bg-gradient-to-r from-[#0b322c]/95 via-[#0f3f37]/95 to-[#0b322c]/95 backdrop-blur-md border border-[#e5a93c]/50 shadow-[0_10px_30px_rgba(0,0,0,0.65)] pointer-events-auto">
-              <button
-                type="button"
-                onClick={handlePillClick}
-                className="flex-1 flex items-center gap-2.5 text-left active:scale-[0.98] transition-transform"
-              >
-                <span className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#e5a93c] text-[#062320] text-xs font-extrabold shadow-sm">
-                  📲
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#e5a93c] opacity-30"></span>
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs font-extrabold text-white tracking-tight truncate">
-                    📲 Pasang Aplikasi <span className="text-[#e5a93c]">(Hanya 1 MB)</span>
-                  </div>
-                  <div className="text-[10px] text-slate-300 truncate">
-                    Akses 1-klik di layar utama HP tanpa memori penuh
-                  </div>
-                </div>
-              </button>
-
-              <div className="flex items-center gap-1 shrink-0">
+          {showFloatingPill && (
+            <div
+              className={`fixed left-0 right-0 z-30 pointer-events-none flex justify-center px-3 transition-all duration-300 ${
+                hasBottomNav ? 'bottom-[72px]' : 'bottom-4'
+              }`}
+            >
+              <div className="w-full max-w-md flex items-center justify-between gap-2 pl-3.5 pr-2 py-2 rounded-full bg-gradient-to-r from-[#0b322c]/95 via-[#0f3f37]/95 to-[#0b322c]/95 backdrop-blur-md border border-[#e5a93c]/50 shadow-[0_10px_30px_rgba(0,0,0,0.65)] pointer-events-auto">
                 <button
                   type="button"
                   onClick={handlePillClick}
-                  className="px-3 py-1.5 rounded-full bg-[#e5a93c] hover:bg-[#f0b749] text-[#062320] font-extrabold text-[11px] shadow-sm active:scale-95 transition-all"
+                  className="flex-1 flex items-center gap-2.5 text-left active:scale-[0.98] transition-transform"
                 >
-                  Pasang
+                  <span className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#e5a93c] text-[#062320] text-xs font-extrabold shadow-sm">
+                    📲
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#e5a93c] opacity-30"></span>
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-extrabold text-white tracking-tight truncate">
+                      📲 Pasang Aplikasi <span className="text-[#e5a93c]">(Hanya 1 MB)</span>
+                    </div>
+                    <div className="text-[10px] text-slate-300 truncate">
+                      Akses 1-klik di layar utama HP tanpa memori penuh
+                    </div>
+                  </div>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setIsDismissed(true)}
-                  aria-label="Sembunyikan tombol pasang"
-                  className="p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors text-xs leading-none"
-                >
-                  ✕
-                </button>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handlePillClick}
+                    className="px-3 py-1.5 rounded-full bg-[#e5a93c] hover:bg-[#f0b749] text-[#062320] font-extrabold text-[11px] shadow-sm active:scale-95 transition-all"
+                  >
+                    Pasang
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsDismissed(true)}
+                    aria-label="Sembunyikan tombol pasang"
+                    className="p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors text-xs leading-none"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* SMART INSTALL BOTTOM SHEET */}
           {isSheetOpen && (
@@ -1375,7 +1579,7 @@ _SalonCukurKilat — Studio & Home Service_`;
     // =========================================================================
     // 5. KOMPONEN LOGIN SCREEN
     // =========================================================================
-    function LoginScreen({ customers, barbers, onLoginCustomer, onLoginBarber, onLoginAdmin, onOpenCareer }) {
+    function LoginScreen({ customers, barbers, onLoginCustomer, onLoginBarber, onLoginAdmin, onOpenCareer, onOpenQrModal }) {
       const [roleTab, setRoleTab] = useState('customer');
       const [custPhone, setCustPhone] = useState('081398765432');
       const [custName, setCustName] = useState('Andi Prasetyo');
@@ -1559,13 +1763,22 @@ _SalonCukurKilat — Studio & Home Service_`;
                 </button>
               </form>
 
-              <button
-                type="button"
-                onClick={onOpenCareer}
-                className="w-full p-3 rounded-xl bg-[#0b322c] border border-white/10 text-center text-xs font-semibold text-[#e5a93c]"
-              >
-                💈 Ingin Melamar Kerja Jadi Barber? Klik di Sini
-              </button>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={onOpenCareer}
+                  className="w-full p-3 rounded-xl bg-[#0b322c] border border-white/10 text-center text-xs font-semibold text-[#e5a93c]"
+                >
+                  💈 Ingin Melamar Kerja Jadi Barber? Klik di Sini
+                </button>
+                <button
+                  type="button"
+                  onClick={onOpenQrModal}
+                  className="w-full p-2.5 rounded-xl bg-[#0b322c]/70 border border-[#e5a93c]/25 text-center text-xs font-semibold text-slate-200 hover:text-white"
+                >
+                  📱 Tampilkan QR Code Meja Kasir & Bagikan Link App
+                </button>
+              </div>
             </div>
 
             <footer className="text-center text-[11px] text-slate-400 pt-6 pb-2">

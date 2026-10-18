@@ -23,22 +23,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Build production bundle (with standalone fallback)
+      - name: Prepare Master Single-File UI Bundle (Index.html + PWA)
         run: |
           mkdir -p dist
-          if npm install && npm run build; then
-            echo "Vite production build succeeded"
-          else
-            echo "Using standalone production bundle from gas/Index.html"
-            cp gas/Index.html dist/index.html
-            cp public/manifest.json dist/manifest.json
-            cp public/sw.js dist/sw.js
-          fi
+          cp gas/Index.html dist/index.html
+          cp public/manifest.json dist/manifest.json
+          cp public/sw.js dist/sw.js
           touch dist/.nojekyll
 
       - name: Setup GitHub Pages
