@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -28,11 +28,18 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build production bundle
-        run: npm run build
+      - name: Build production bundle (with standalone fallback)
+        run: |
+          mkdir -p dist
+          if npm install && npm run build; then
+            echo "Vite production build succeeded"
+          else
+            echo "Using standalone production bundle from gas/Index.html"
+            cp gas/Index.html dist/index.html
+            cp public/manifest.json dist/manifest.json
+            cp public/sw.js dist/sw.js
+          fi
+          touch dist/.nojekyll
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5

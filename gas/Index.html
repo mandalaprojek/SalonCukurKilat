@@ -2821,5 +2821,12 @@ _SalonCukurKilat — Studio & Home Service_`;
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
+  <script>
+    if ('serviceWorker' in navigator && !window.google?.script?.run) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('./sw.js').catch(function () {});
+      });
+    }
+  </script>
 </body>
 </html>
